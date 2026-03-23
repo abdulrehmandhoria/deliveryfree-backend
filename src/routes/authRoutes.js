@@ -11,7 +11,7 @@ router.patch('/toggle-online', protect, authController.toggleOnlineStatus);
 router.get('/riders', protect, restrictTo('ADMIN'), authController.getAllRiders);
 
 // Admin only routes
-router.use(restrictTo('ADMIN'));
+router.use(protect, restrictTo('ADMIN'));
 router.get('/restaurants', authController.getAllRestaurants);
 router.post('/assign-plan', authController.updateUserSubscription);
 router.post('/assign-restaurants', authController.assignRestaurantsToRider);
