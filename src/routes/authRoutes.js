@@ -7,6 +7,7 @@ const router = express.Router();
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/my-subscription', protect, authController.getMySubscription);
+router.get('/check-subscription', protect, authController.checkMySubscription);
 router.patch('/toggle-online', protect, authController.toggleOnlineStatus);
 router.get('/riders', protect, restrictTo('ADMIN'), authController.getAllRiders);
 

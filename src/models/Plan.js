@@ -11,6 +11,10 @@ const planSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'A plan must have a price'],
   },
+  duration: {
+    type: Number,
+    default: 30,
+  },
   features: {
     type: [String],
     default: [],

@@ -28,16 +28,31 @@ exports.updateUserSubscription = catchAsync(async (req, res, next) => {
   const plan = await Plan.findById(planId);
   if (!plan) return next(new AppError('Plan not found', 404));
 
-  const subscription = await Subscription.findOneAndUpdate(
-    { user: userId },
-    { 
-      plan: planId, 
-      status: 'ACTIVE', 
-      endDate,
-      startDate: Date.now()
-    },
-    { upsert: true, new: true }
-  );
+  const duration = plan.duration || 30;
+  const endDate = new Date(Date.now() + duration * 24 * 60 * 60 * 1000);
+  const startDate = new Date();
+
+  let subscription = await Subscription.findOne({ user: userId });
+
+  if (subscription) {
+    subscription.plan = planId;
+    subscription.status = 'ACTIVE';
+    subscription.startDate = startDate;
+    subscription.endDate = endDate;
+    subscription.customPrice = customPrice || null;
+    await subscription.save();
+  } else {
+    subscription = await Subscription.create({
+      user: userId,
+      plan: planId,
+      status: 'ACTIVE',
+      startDate: startDate,
+      endDate: endDate,
+      customPrice: customPrice || null
+    });
+  }
+
+  await subscription.populate('plan');
 
   res.status(200).json({
     status: 'success',
@@ -54,6 +69,38 @@ exports.getMySubscription = catchAsync(async (req, res, next) => {
     status: 'success',
     data: {
       subscription,
+    },
+  });
+});
+
+exports.checkMySubscription = catchAsync(async (req, res, next) => {
+  const subscription = await Subscription.findOne({ user: req.user._id }).populate('plan');
+
+  let status = 'inactive';
+  let message = 'No subscription found';
+
+  if (subscription) {
+    const isExpired = new Date(subscription.endDate).getTime() < Date.now();
+    if (subscription.status === 'ACTIVE' && !isExpired) {
+      status = 'active';
+      message = 'Subscription is active';
+    } else if (subscription.status !== 'ACTIVE') {
+      status = 'inactive';
+      message = 'Subscription is not active';
+    } else if (isExpired) {
+      status = 'expired';
+      message = 'Subscription has expired';
+    }
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      subscription,
+      checkStatus: status,
+      message,
+      serverTime: new Date().toISOString(),
+      subscriptionEndDate: subscription?.endDate,
     },
   });
 });

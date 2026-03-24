@@ -1,18 +1,19 @@
 const express = require('express');
 const orderController = require('../controllers/orderController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
-const { checkSubscription } = require('../middleware/subscriptionMiddleware');
 
 const router = express.Router();
 
-router.use(protect); // All order routes are protected
+router.use(protect);
 
-// Apply subscription check to order creation and job board
-router.post('/', checkSubscription, orderController.createOrder);
-router.get('/available', checkSubscription, orderController.getAvailableOrders);
+router.post('/', orderController.createOrder);
+router.get('/available', orderController.getAvailableOrders);
+router.get('/completed', orderController.getCompletedOrders);
+router.get('/debug-orders', protect, orderController.debugGetAllOrders);
 
 router.get('/all', restrictTo('ADMIN'), orderController.getAllOrders);
 router.get('/stats', restrictTo('ADMIN'), orderController.getOrderStats);
+router.post('/auto-assign', restrictTo('ADMIN'), orderController.autoAssignPendingOrders);
 
 router.route('/')
   .get(orderController.getRestaurantOrders);

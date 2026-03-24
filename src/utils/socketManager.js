@@ -17,11 +17,27 @@ module.exports = {
         console.log(`Socket ${socket.id} joined room ${room}`);
       });
 
+      socket.on('leave', (room) => {
+        socket.leave(room);
+        console.log(`Socket ${socket.id} left room ${room}`);
+      });
+
       socket.on('LOCATION_UPDATE', (data) => {
         const { orderId, location } = data;
         if (orderId && location) {
-          // Broadcast to everyone in the order-specific room (Restaurant, Admin, Customer)
           io.to(`order_${orderId}`).emit('RIDER_LOCATION_CHANGED', { orderId, location });
+        }
+      });
+
+      socket.on('CHAT_MESSAGE', (data) => {
+        const { orderId, message, sender } = data;
+        if (orderId && message) {
+          const chatData = {
+            ...data,
+            time: new Date().toISOString(),
+          };
+          io.to(`order_${orderId}`).emit('CHAT_MESSAGE', chatData);
+          io.to(`chat_${orderId}`).emit('CHAT_MESSAGE', chatData);
         }
       });
 

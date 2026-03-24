@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const User = require('../models/User');
+const socketManager = require('../utils/socketManager');
 
 const autoAssignRider = async (order) => {
   // 1. Find all online riders
@@ -48,29 +49,42 @@ exports.getAllOrders = catchAsync(async (req, res, next) => {
 });
 
 exports.createOrder = catchAsync(async (req, res, next) => {
-  // Add restaurant from logged in user
   req.body.restaurant = req.user._id;
+  req.body.status = 'PENDING';
 
   const order = await Order.create(req.body);
 
-  // Auto assignment logic
-  const bestRider = await autoAssignRider(order);
-  if (bestRider) {
-    order.rider = bestRider._id;
-    order.status = 'ASSIGNED';
-    order.assignmentType = 'AUTO';
-    await order.save();
-  }
-
   const populatedOrder = await Order.findById(order._id).populate('restaurant');
 
-  // Emit event for real-time updates
-  const io = req.app.get('socketio');
-  io.emit('ORDER_CREATED', populatedOrder);
+  socketManager.emitEvent('ORDER_CREATED', populatedOrder);
 
   res.status(201).json({
     status: 'success',
     data: { order: populatedOrder },
+  });
+});
+
+exports.autoAssignPendingOrders = catchAsync(async (req, res, next) => {
+  const pendingOrders = await Order.find({ status: 'PENDING' });
+  let assigned = 0;
+
+  for (const order of pendingOrders) {
+    const bestRider = await autoAssignRider(order);
+    if (bestRider) {
+      order.rider = bestRider._id;
+      order.status = 'ASSIGNED';
+      order.assignmentType = 'AUTO';
+      await order.save();
+      assigned++;
+    }
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      totalPending: pendingOrders.length,
+      assigned,
+    },
   });
 });
 
@@ -102,24 +116,67 @@ exports.getOrder = catchAsync(async (req, res, next) => {
 });
 
 exports.getAvailableOrders = catchAsync(async (req, res, next) => {
-  // Check if rider is online
+  console.log(`Available orders request from rider:`, {
+    userId: req.user._id,
+    isOnline: req.user.isOnline,
+    assignedRestaurants: req.user.assignedRestaurants
+  });
+
   if (!req.user.isOnline) {
     return next(new AppError('You must be online to view available orders.', 400));
   }
 
-  // Filter orders by assigned restaurants
   const filter = { status: 'PENDING' };
+  
   if (req.user.assignedRestaurants && req.user.assignedRestaurants.length > 0) {
     filter.restaurant = { $in: req.user.assignedRestaurants };
   }
 
   const orders = await Order.find(filter).populate('restaurant').sort('-createdAt');
 
+  console.log(`Found ${orders.length} available orders for rider`);
+
   res.status(200).json({
     status: 'success',
     results: orders.length,
     data: {
       orders,
+    },
+  });
+});
+
+exports.getCompletedOrders = catchAsync(async (req, res, next) => {
+  const orders = await Order.find({ 
+    rider: req.user._id,
+    status: 'DELIVERED'
+  })
+  .populate('restaurant', 'name phone')
+  .sort('-createdAt')
+  .limit(50);
+
+  const totalEarnings = orders.length * 50;
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      orders,
+      totalDeliveries: orders.length,
+      totalEarnings,
+    },
+  });
+});
+
+exports.debugGetAllOrders = catchAsync(async (req, res, next) => {
+  const allOrders = await Order.find().populate('restaurant rider').sort('-createdAt').limit(20);
+  
+  console.log(`Debug - All orders count: ${allOrders.length}`);
+  console.log(`Order statuses: ${allOrders.map(o => o.status).join(', ')}`);
+  
+  res.status(200).json({
+    status: 'success',
+    data: {
+      orders: allOrders,
+      statuses: allOrders.map(o => ({ id: o._id, status: o.status, rider: o.rider?.name || 'none' }))
     },
   });
 });

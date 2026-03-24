@@ -37,7 +37,7 @@ const subscriptionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-subscriptionSchema.index({ restaurant: 1 });
+subscriptionSchema.index({ user: 1 });
 subscriptionSchema.index({ status: 1 });
 
 const Subscription = mongoose.model('Subscription', subscriptionSchema);
