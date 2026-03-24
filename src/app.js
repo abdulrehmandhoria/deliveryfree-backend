@@ -7,6 +7,8 @@ const trackingRouter = require('./routes/trackingRoutes');
 const analyticsRouter = require('./routes/analyticsRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const messageRoutes = require('./routes/messageRoutes');
+const locationRoutes = require('./routes/locationRoutes');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -30,6 +32,8 @@ app.use('/track', trackingRouter); // Public tracking
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/messages', messageRoutes);
+app.use('/api/v1/locations', locationRoutes);
 
 app.get('/', (req, res) => {
   res.send('DeliverFree API is running...');
