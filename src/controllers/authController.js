@@ -135,6 +135,27 @@ exports.toggleUserStatus = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.toggleSubscriptionStatus = catchAsync(async (req, res, next) => {
+  const { userId, status } = req.body;
+  
+  let subscription = await Subscription.findOne({ user: userId });
+  
+  if (!subscription) {
+    return next(new AppError('Subscription not found', 404));
+  }
+  
+  subscription.status = status;
+  await subscription.save();
+  await subscription.populate('plan');
+  
+  res.status(200).json({
+    status: 'success',
+    data: {
+      subscription,
+    },
+  });
+});
+
 exports.assignRestaurantsToRider = catchAsync(async (req, res, next) => {
   const { riderId, restaurantIds } = req.body;
 

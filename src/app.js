@@ -9,6 +9,7 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const locationRoutes = require('./routes/locationRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -34,6 +35,7 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/locations', locationRoutes);
+app.use('/api/v1/products', productRoutes);
 
 app.get('/', (req, res) => {
   res.send('DeliverFree API is running...');

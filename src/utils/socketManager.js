@@ -54,8 +54,8 @@ const init = (server) => {
           isRead: false
         };
 
-        // Broadcast to all in the order room including sender
-        io.to(`order_${orderId}`).emit('CHAT_MESSAGE', broadcastData);
+        // Broadcast to all in the order room EXCEPT sender
+        socket.to(`order_${orderId}`).emit('CHAT_MESSAGE', broadcastData);
         
         console.log(`Chat message sent in order ${orderId}`);
       } catch (error) {
@@ -84,9 +84,9 @@ const init = (server) => {
           heading: heading || 0
         });
 
-        // Broadcast to all in the order room
+        // Broadcast to all in the order room EXCEPT sender
         if (orderId) {
-          io.to(`order_${orderId}`).emit('RIDER_LOCATION_CHANGED', {
+          socket.to(`order_${orderId}`).emit('RIDER_LOCATION_CHANGED', {
             orderId,
             riderId,
             location: { lat, lng },

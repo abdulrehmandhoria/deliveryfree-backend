@@ -49,19 +49,31 @@ exports.getAllOrders = catchAsync(async (req, res, next) => {
 });
 
 exports.createOrder = catchAsync(async (req, res, next) => {
-  req.body.restaurant = req.user._id;
-  req.body.status = 'PENDING';
+  try {
+    console.log('createOrder - user:', req.user?._id, 'role:', req.user?.role);
+    console.log('createOrder - body:', req.body);
+    
+    req.body.restaurant = req.user._id;
+    req.body.status = 'PENDING';
 
-  const order = await Order.create(req.body);
+    const order = await Order.create(req.body);
+    console.log('Order created:', order._id);
 
-  const populatedOrder = await Order.findById(order._id).populate('restaurant');
+    const populatedOrder = await Order.findById(order._id).populate('restaurant');
 
-  socketManager.emitEvent('ORDER_CREATED', populatedOrder);
+    socketManager.emitEvent('ORDER_CREATED', populatedOrder);
 
-  res.status(201).json({
-    status: 'success',
-    data: { order: populatedOrder },
-  });
+    res.status(201).json({
+      status: 'success',
+      data: { order: populatedOrder },
+    });
+  } catch (error) {
+    console.error('createOrder error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
 });
 
 exports.autoAssignPendingOrders = catchAsync(async (req, res, next) => {
@@ -89,15 +101,25 @@ exports.autoAssignPendingOrders = catchAsync(async (req, res, next) => {
 });
 
 exports.getRestaurantOrders = catchAsync(async (req, res, next) => {
-  const orders = await Order.find({ restaurant: req.user._id }).sort('-createdAt');
+  try {
+    console.log('getRestaurantOrders - user:', req.user?._id);
+    
+    const orders = await Order.find({ restaurant: req.user._id }).sort('-createdAt');
 
-  res.status(200).json({
-    status: 'success',
-    results: orders.length,
-    data: {
-      orders,
-    },
-  });
+    res.status(200).json({
+      status: 'success',
+      results: orders.length,
+      data: {
+        orders,
+      },
+    });
+  } catch (error) {
+    console.error('getRestaurantOrders error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
 });
 
 exports.getOrder = catchAsync(async (req, res, next) => {
@@ -164,6 +186,69 @@ exports.getCompletedOrders = catchAsync(async (req, res, next) => {
       totalEarnings,
     },
   });
+});
+
+exports.getActiveOrder = catchAsync(async (req, res, next) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+    
+    console.log('getActiveOrder - user:', req.user._id);
+    
+    const order = await Order.findOne({
+      rider: req.user._id,
+      status: { $in: ['ASSIGNED', 'PICKED_UP', 'OUT_FOR_DELIVERY'] }
+    }).populate('restaurant rider');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        order,
+      },
+    });
+  } catch (error) {
+    console.error('getActiveOrder error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
+});
+
+exports.getMyOrders = catchAsync(async (req, res, next) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+    
+    console.log('getMyOrders - user:', req.user._id);
+    
+    const orders = await Order.find({ rider: req.user._id })
+      .populate('restaurant', 'name phone')
+      .sort('-createdAt')
+      .limit(50);
+
+    res.status(200).json({
+      status: 'success',
+      results: orders.length,
+      data: {
+        orders,
+      },
+    });
+  } catch (error) {
+    console.error('getMyOrders error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
 });
 
 exports.debugGetAllOrders = catchAsync(async (req, res, next) => {

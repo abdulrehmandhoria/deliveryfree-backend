@@ -77,3 +77,55 @@ exports.deleteMessage = catchAsync(async (req, res, next) => {
     data: null
   });
 });
+
+exports.getConversations = catchAsync(async (req, res, next) => {
+  const Order = require('../models/Order');
+  
+  let restaurantFilter = {};
+  let riderFilter = {};
+  
+  if (req.user.role === 'RESTAURANT') {
+    restaurantFilter = { restaurant: req.user._id };
+  } else if (req.user.role === 'RIDER') {
+    riderFilter = { rider: req.user._id };
+  }
+  
+  const ordersWithMessages = await Order.find({
+    $or: [
+      restaurantFilter,
+      riderFilter
+    ],
+    _id: { $in: await Message.distinct('orderId') }
+  })
+  .select('customerName customerPhone status createdAt')
+  .sort('-createdAt');
+
+  const conversations = await Promise.all(
+    ordersWithMessages.map(async (order) => {
+      const lastMessage = await Message.findOne({ orderId: order._id })
+        .sort('-createdAt');
+      
+      const unreadCount = await Message.countDocuments({
+        orderId: order._id,
+        senderId: { $ne: req.user._id },
+        isRead: false
+      });
+
+      return {
+        orderId: order._id,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        status: order.status,
+        lastMessage: lastMessage?.message || '',
+        lastMessageTime: lastMessage?.createdAt || order.createdAt,
+        unreadCount
+      };
+    })
+  );
+
+  res.status(200).json({
+    status: 'success',
+    results: conversations.length,
+    data: { conversations }
+  });
+});

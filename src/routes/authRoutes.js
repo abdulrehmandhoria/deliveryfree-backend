@@ -10,6 +10,7 @@ router.get('/my-subscription', protect, authController.getMySubscription);
 router.get('/check-subscription', protect, authController.checkMySubscription);
 router.patch('/toggle-online', protect, authController.toggleOnlineStatus);
 router.get('/riders', protect, restrictTo('ADMIN'), authController.getAllRiders);
+router.patch('/subscription/toggle', protect, restrictTo('ADMIN'), authController.toggleSubscriptionStatus);
 
 // Admin only routes
 router.use(protect, restrictTo('ADMIN'));
